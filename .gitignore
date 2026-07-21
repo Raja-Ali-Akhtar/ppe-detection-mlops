@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Datasets — DVC pointers only, never raw data
+data/
+datasets/
+*.zip
+
+# Experiment tracking
+mlruns/
+mlartifacts/
+
+# Model weights & exports
+*.pt
+*.onnx
+*.engine
+*.plan
+runs/
+
+# FiftyOne
+.fiftyone/
+
+# Credentials / secrets
+.env
+*.pem
+credentials*
+.aws/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
