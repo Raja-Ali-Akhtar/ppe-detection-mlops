@@ -53,11 +53,17 @@ def remap_label_file(src: Path, dst: Path) -> tuple[int, int]:
 
 
 def load_exclusions() -> set:
-    """Leakage twins flagged by find_near_duplicates.py, as 'split/filename'."""
-    path = ROOT / "curation" / "leakage_exclusions.txt"
-    if not path.exists():
-        return set()
-    return {line.strip() for line in path.read_text().splitlines() if line.strip()}
+    """Union of every committed exclusion list in curation/, as 'split/filename'.
+
+    Each list is one curation decision with its own generator script
+    (leakage_exclusions <- find_near_duplicates.py, augmented_exclusions and
+    bad_label_exclusions <- find_augmented_copies.py)."""
+    excluded = set()
+    for path in sorted((ROOT / "curation").glob("*_exclusions.txt")):
+        lines = {line.strip() for line in path.read_text().splitlines() if line.strip()}
+        print(f"exclusion list {path.name}: {len(lines)} entries")
+        excluded |= lines
+    return excluded
 
 
 def main() -> None:
@@ -103,7 +109,7 @@ def main() -> None:
 
     print(f"boxes kept: {total_kept}, dropped: {total_dropped}")
     print(f"background (label-free) images: {backgrounds}")
-    print(f"leakage twins excluded from valid/test: {excluded}")
+    print(f"images excluded via curation lists: {excluded}")
     print(f"written to {PROCESSED}")
 
 

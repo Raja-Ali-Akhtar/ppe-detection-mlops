@@ -18,14 +18,16 @@ DATASET_NAME = "ppe-raw"
 
 def main() -> None:
     dataset = fo.load_dataset(DATASET_NAME)
+    n_samples = len(dataset)  # capture BEFORE compute: its temp-index cleanup
+    # corrupts the dataset's count state (fiftyone 1.19 bug, seen on Windows)
 
-    index = fob.compute_near_duplicates(
-        dataset,
-        model="mobilenet-v2-imagenet-torch",
-    )
+    # NOTE: this API version has no brain_key persistence for near-dups; the
+    # temp-index cleanup corrupts the dataset's COUNT state on exit (data is
+    # fine — reimport with curate_dataset.py if the app shows "No samples")
+    index = fob.compute_near_duplicates(dataset, model="mobilenet-v2-imagenet-torch")
 
     dup_ids = index.duplicate_ids
-    print(f"\nnear-duplicate candidates: {len(dup_ids)} of {len(dataset)} samples")
+    print(f"\nnear-duplicate candidates: {len(dup_ids)} of {n_samples} samples")
 
     for sample_id in dup_ids:
         sample = dataset[sample_id]
