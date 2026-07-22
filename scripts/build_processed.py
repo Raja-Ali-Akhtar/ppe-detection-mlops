@@ -52,10 +52,20 @@ def remap_label_file(src: Path, dst: Path) -> tuple[int, int]:
     return kept, dropped
 
 
+def load_exclusions() -> set:
+    """Leakage twins flagged by find_near_duplicates.py, as 'split/filename'."""
+    path = ROOT / "curation" / "leakage_exclusions.txt"
+    if not path.exists():
+        return set()
+    return {line.strip() for line in path.read_text().splitlines() if line.strip()}
+
+
 def main() -> None:
     if PROCESSED.exists():
         shutil.rmtree(PROCESSED)  # regenerable by definition — always rebuild clean
 
+    exclusions = load_exclusions()
+    excluded = 0
     total_kept, total_dropped, backgrounds = 0, 0, 0
     for split in ("train", "valid", "test"):
         img_src = RAW / split / "images"
@@ -66,6 +76,9 @@ def main() -> None:
         lbl_dst.mkdir(parents=True)
 
         for img in img_src.iterdir():
+            if f"{split}/{img.name}" in exclusions:
+                excluded += 1
+                continue
             shutil.copy2(img, img_dst / img.name)
             label = lbl_src / (img.stem + ".txt")
             if label.exists():
@@ -90,6 +103,7 @@ def main() -> None:
 
     print(f"boxes kept: {total_kept}, dropped: {total_dropped}")
     print(f"background (label-free) images: {backgrounds}")
+    print(f"leakage twins excluded from valid/test: {excluded}")
     print(f"written to {PROCESSED}")
 
 
