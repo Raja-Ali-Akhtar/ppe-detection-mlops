@@ -18,7 +18,9 @@ from roboflow import Roboflow
 WORKSPACE = "roboflow-universe-projects"
 PROJECT = "construction-site-safety"
 VERSION = 30  # pin the version so the download is reproducible
-DEST = Path(__file__).resolve().parents[1] / "data" / "raw"
+# NOTE: must not pre-create this dir — roboflow treats an existing dir as
+# "already downloaded" and silently skips the fetch
+DEST = Path(__file__).resolve().parents[1] / "data" / "raw" / f"css-v{VERSION}"
 
 
 def main() -> None:
@@ -32,7 +34,8 @@ def main() -> None:
     if not api_key:
         sys.exit("ROBOFLOW_API_KEY not set (env var or .env file)")
 
-    DEST.mkdir(parents=True, exist_ok=True)
+    if DEST.exists():
+        sys.exit(f"{DEST} already exists — delete it first to re-download")
     rf = Roboflow(api_key=api_key)
     project = rf.workspace(WORKSPACE).project(PROJECT)
     dataset = project.version(VERSION).download("yolov8", location=str(DEST))
