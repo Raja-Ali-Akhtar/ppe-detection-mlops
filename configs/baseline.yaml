@@ -1,0 +1,11 @@
+# Stage 1 baseline — deliberately default hyperparameters (this IS the experiment)
+# Every training run = one config file. Config + git hash + DVC hash = full reproducibility.
+model: yolov8n.pt
+data: data/processed/ppe-7cls-v1/data.yaml
+epochs: 100
+imgsz: 640
+batch: 16          # fits 6GB VRAM for v8n @ 640
+patience: 30
+seed: 42
+project: ppe-detection
+name: baseline-yolov8n
