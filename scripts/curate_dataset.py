@@ -24,23 +24,39 @@ RAW = ROOT / "data" / "raw"
 DATASET_NAME = "ppe-raw"
 
 
+def _fixed_yaml(original: Path) -> Path:
+    """Roboflow yamls point at ../train/images (one level above the yaml), which is
+    wrong for local tooling. Write a corrected copy with absolute paths OUTSIDE
+    raw/ (raw stays byte-identical to the download)."""
+    import yaml
+
+    cfg = yaml.safe_load(original.read_text())
+    base = original.parent
+    for key, subdir in (("train", "train"), ("val", "valid"), ("test", "test")):
+        if key in cfg:
+            cfg[key] = str((base / subdir / "images").resolve())
+    fixed = original.parents[2] / "css-v30-local.yaml"  # lands in data/
+    fixed.write_text(yaml.safe_dump(cfg))
+    return fixed
+
+
 def load_dataset() -> fo.Dataset:
     """Load all YOLO splits from data/raw into one FiftyOne dataset with split tags."""
     if fo.dataset_exists(DATASET_NAME):
         return fo.load_dataset(DATASET_NAME)
 
     dataset = fo.Dataset(DATASET_NAME, persistent=True)
-    yaml_path = next(RAW.rglob("data.yaml"))
-    base = yaml_path.parent
-    for split in ("train", "valid", "test"):
-        split_dir = base / split
-        if not split_dir.exists():
+    yaml_path = _fixed_yaml(next(RAW.rglob("data.yaml")))
+    base = next(RAW.rglob("data.yaml")).parent
+    # disk dirs are train/valid/test but the yaml keys are train/val/test
+    for split_dir_name, yaml_key in (("train", "train"), ("valid", "val"), ("test", "test")):
+        if not (base / split_dir_name).exists():
             continue
         dataset.add_dir(
             dataset_type=fo.types.YOLOv5Dataset,
             dataset_dir=str(base),
-            split=split,
-            tags=split,
+            split=yaml_key,
+            tags=split_dir_name,
             yaml_path=str(yaml_path),
         )
     return dataset
