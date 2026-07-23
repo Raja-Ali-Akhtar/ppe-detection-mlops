@@ -68,9 +68,11 @@ Config-driven training ([`scripts/train.py`](scripts/train.py) + [`configs/`](co
 | baseline-yolov8n | YOLOv8n (3M) | 640 | 0.528 | 0.306 |
 | exp-imgsz320 | YOLOv8n | 320 | 0.481 | 0.262 |
 
-**Findings (honest, small-val-set caveats apply — 60 images):**
+**Held-out test set** (48 images, untouched by training or model selection): the winning model scores **0.577 mAP50 / 0.332 mAP50-95** — agreeing with val within noise, i.e. no evidence the val-driven model selection inflated the numbers.
+
+**Findings (honest, small-val-set caveats apply — 60 val / 48 test images):**
 - **Halving resolution barely hurts `Hardhat` (0.737 → 0.727 mAP50) but collapses `NO-Hardhat` (0.456 → 0.296).** Detecting a bright hardhat survives 320px; detecting a *bare head* — the violation that safety systems exist to catch — does not. Resolution decisions should be driven by the violation classes, not the average.
-- The NO-* (violation) classes lag their positive counterparts consistently: absence is harder to detect than presence.
+- The NO-* (violation) classes lag their positive counterparts consistently: absence is harder to detect than presence. **NO-Hardhat is the confirmed weakest class on every evaluation (0.456 val, 0.276 test) — the retraining loop's first data-collection target.**
 - 3.7× more parameters bought only +2.3 mAP50 points: with 509 images, **data is the bottleneck, not architecture** (the Stage 4 retraining loop exists for exactly this reason).
 - `Mask` mAP is reported but meaningless (6 val instances).
 
