@@ -6,13 +6,13 @@ venv/
 *.egg-info/
 
 # Datasets — DVC pointers only, never raw data
-data/
 datasets/
 *.zip
 
 # Experiment tracking
 mlruns/
 mlartifacts/
+mlflow.db
 
 # Model weights & exports
 *.pt

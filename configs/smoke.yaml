@@ -1,0 +1,11 @@
+# Pipeline smoke test — NOT an experiment. Proves train->MLflow->artifacts works
+# in minutes before committing a full overnight run. CI will reuse this pattern.
+model: yolov8n.pt
+data: data/processed/ppe-7cls-v1/data.yaml
+epochs: 2
+imgsz: 320
+batch: 16
+patience: 50
+seed: 42
+project: ppe-detection
+name: smoke

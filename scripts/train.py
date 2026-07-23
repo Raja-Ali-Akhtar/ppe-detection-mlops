@@ -25,9 +25,11 @@ def main() -> None:
 
     cfg = yaml.safe_load(Path(args.config).read_text())
 
-    # local tracking: file store in mlruns/ (gitignored). Stage 3 swaps this
-    # URI for a remote server — nothing else changes.
-    os.environ.setdefault("MLFLOW_TRACKING_URI", (ROOT / "mlruns").resolve().as_uri())
+    # local tracking: SQLite backend (mlflow 3.x deprecated the plain-folder
+    # store). Stage 3 swaps this URI for a remote server — nothing else changes.
+    os.environ.setdefault(
+        "MLFLOW_TRACKING_URI", f"sqlite:///{(ROOT / 'mlflow.db').as_posix()}"
+    )
     os.environ.setdefault("MLFLOW_EXPERIMENT_NAME", cfg.get("project", "ppe-detection"))
 
     from ultralytics import YOLO, settings
@@ -43,7 +45,9 @@ def main() -> None:
         batch=cfg["batch"],
         patience=cfg.get("patience", 50),
         seed=cfg.get("seed", 0),
-        project=cfg.get("project", "ppe-detection"),
+        # absolute path: ultralytics' GLOBAL settings.json remembers runs_dir
+        # from other projects on this machine — never trust it implicitly
+        project=str(ROOT / "runs" / cfg.get("project", "ppe-detection")),
         name=cfg.get("name"),
     )
 
