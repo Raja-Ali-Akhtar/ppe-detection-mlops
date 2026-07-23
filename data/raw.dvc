@@ -1,0 +1,6 @@
+outs:
+- md5: 03ac6c983d7bd9a1fc635dc64ea6ecad.dir
+  size: 81789688
+  nfiles: 1437
+  hash: md5
+  path: raw
