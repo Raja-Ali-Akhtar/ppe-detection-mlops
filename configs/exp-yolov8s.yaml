@@ -1,0 +1,11 @@
+# Experiment: bigger model, same everything else. Question: does v8s (11M params)
+# beat v8n (3M) on this small dataset, or just overfit it?
+model: yolov8s.pt
+data: data/processed/ppe-7cls-v1/data.yaml
+epochs: 100
+imgsz: 640
+batch: 8           # v8s @ 640 needs headroom on 6GB VRAM
+patience: 30
+seed: 42
+project: ppe-detection
+name: exp-yolov8s

@@ -1,0 +1,11 @@
+# Experiment: half the input resolution. Question: how much mAP does 320px cost
+# vs baseline's 640? (Relevant to Stage 2: resolution is the biggest latency lever.)
+model: yolov8n.pt
+data: data/processed/ppe-7cls-v1/data.yaml
+epochs: 100
+imgsz: 320
+batch: 32          # smaller images -> double the batch fits
+patience: 30
+seed: 42
+project: ppe-detection
+name: exp-imgsz320

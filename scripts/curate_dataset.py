@@ -43,7 +43,11 @@ def _fixed_yaml(original: Path) -> Path:
 def load_dataset() -> fo.Dataset:
     """Load all YOLO splits from data/raw into one FiftyOne dataset with split tags."""
     if fo.dataset_exists(DATASET_NAME):
-        return fo.load_dataset(DATASET_NAME)
+        existing = fo.load_dataset(DATASET_NAME)
+        if len(existing) > 0:
+            return existing
+        # empty cached dataset = a failed/unflushed prior import; never trust it
+        fo.delete_dataset(DATASET_NAME)
 
     dataset = fo.Dataset(DATASET_NAME, persistent=True)
     yaml_path = _fixed_yaml(next(RAW.rglob("data.yaml")))

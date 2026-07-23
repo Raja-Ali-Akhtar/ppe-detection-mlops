@@ -41,3 +41,6 @@ credentials*
 Thumbs.db
 .vscode/
 .idea/
+
+# generated local helper (recreated by curate_dataset.py)
+data/css-v30-local.yaml
