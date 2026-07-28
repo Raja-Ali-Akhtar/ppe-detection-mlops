@@ -22,7 +22,7 @@ This is the sequel to my [monocular depth estimation series](https://github.com/
 ## Stages
 
 - [x] **Stage 1 — Data + baseline training with tracking** — mAP50 0.528 baseline; 717→509 images after curation; DVC+S3; 4 MLflow runs
-- [ ] Stage 2 — Optimization (ONNX / TensorRT FP16 / INT8)
+- [x] **Stage 2 — Optimization (ONNX / TensorRT FP16 / INT8)** — fp16: 2× @ zero loss; int8: 4× throughput, 98.9% retention after firing the default calibrator
 - [ ] Stage 3 — Cloud deployment with IaC (Triton + Terraform + monitoring)
 - [ ] Stage 4 — The retraining loop (data flywheel + drift detection)
 - [ ] Stage 5 — CI/CD
@@ -77,3 +77,35 @@ Config-driven training ([`scripts/train.py`](scripts/train.py) + [`configs/`](co
 - `Mask` mAP is reported but meaningless (6 val instances).
 
 Hardware note: trained on a GTX 1660 Ti (6 GB). AMP auto-disabled (known Turing FP16 issue). YOLOv8s at batch 8 silently spilled into system RAM via Windows CUDA fallback — 4-8× slower epochs; watch `GPU_mem` exceeding VRAM.
+
+## Stage 2 — Optimization: ONNX → TensorRT fp32 / fp16 / int8 ✅
+
+**TL;DR: fp16 doubled speed at zero measurable loss — on the same GPU where fp16 *training* is broken. INT8 hit 4× throughput but the textbook-default entropy calibrator silently cost 12 mAP points; switching one line to MinMax calibration recovered them.**
+
+The model flows registry → export → engines with no file paths anywhere:
+[`register_model.py`](scripts/register_model.py) promotes the Stage 1 winner to `ppe-detector@baseline-champion`;
+[`export_onnx.py`](scripts/export_onnx.py) pulls the alias and exports simplified dynamic ONNX;
+[`build_engines.py`](scripts/build_engines.py) builds engines with a batch 1/8/16 optimization profile (spatial pinned 640 — graph capability ≠ deployment contract);
+[`benchmark.py`](scripts/benchmark.py) measures everything. Each step is an MLflow run in `ppe-optimization` (params, build times, engine SHA256s, calibration caches).
+
+### Results (GTX 1660 Ti, TensorRT 10.2, YOLOv8s @ 640, 48-image held-out test set)
+
+| Variant | batch-1 p50 | batch-16 throughput | Engine size | mAP50 | mAP50-95 | Retention |
+|---|---|---|---|---|---|---|
+| PyTorch fp32 | 10.2 ms | 123 img/s | — | 0.555 | 0.316 | 100% |
+| TRT fp32 | 9.1 ms | 147 img/s | 56.5 MB | 0.555 | 0.316 | 100% |
+| TRT fp16 | 5.2 ms | 287 img/s | 28.9 MB | 0.556 | 0.316 | **100%** |
+| TRT int8 (entropy) | 3.8 ms | 502 img/s | 14.0 MB | 0.487 | 0.275 | 87.1% |
+| TRT int8 (**MinMax**) | 3.9 ms | 502 img/s | 14.0 MB | 0.552 | 0.312 | **98.9%** |
+
+Method: 50 warmup + 200 timed iterations per batch size, p50/p95/p99 recorded; every variant
+(including the PyTorch reference) scored through the identical decode → NMS → FiftyOne
+evaluation path, so retention compares precision — never pipeline differences.
+
+### Findings
+
+- **fp16 is the deployment pick**: 2× fp32 speed, retention indistinguishable from 100% — on the same Turing GTX card where fp16 *training* had to be auto-disabled. TU116 swapped tensor cores for double-rate fp16 inference units: same silicon, opposite verdicts for training vs inference.
+- **The default calibrator was the INT8 problem**: entropy calibration (96 imgs) cost 13% mAP; MinMax + 192 images recovered to 98.9% at identical speed. Per-class autopsy ([reports/int8-class-report.md](reports/int8-class-report.md)): entropy's worst victim was **Safety Vest (−0.177 AP50)** — hypothesis: hi-vis saturation drives outlier activations, and entropy calibration clips exactly those tails, while MinMax preserves the range.
+- **Graph optimization alone is modest** (TRT fp32 = 1.15–1.2× PyTorch) — the speed lives in precision reduction.
+- **Engine size halves per precision step** (56.5 → 28.9 → 14.0 MB) while **build time triples in reverse** (106 → 493 → 887 s): cheaper inference costs a longer kernel search. Engines are locked to TRT version + GPU — they are benchmarking artifacts here; deployment (Stage 3) ships the ONNX to Triton and builds on-target.
+- TensorRT ≥10.1 deprecates the entire implicit-PTQ calibration API used here (explicit Q/DQ via ModelOpt is the successor) — this stage's INT8 workflow is measurably effective and officially end-of-life, both at once.

@@ -1,0 +1,17 @@
+# Benchmark matrix: every variant × latency/throughput/VRAM/mAP.
+# pytorch is the reference variant — retention percentages are computed against it.
+variants:
+  - {name: pytorch, kind: torch, path: "models:/ppe-detector@baseline-champion"}
+  - {name: trt-fp32, kind: engine, path: models/engines/ppe-v1-fp32.engine}
+  - {name: trt-fp16, kind: engine, path: models/engines/ppe-v1-fp16.engine}
+  - {name: trt-int8-entropy, kind: engine, path: models/engines/ppe-v1-int8-entropy.engine}
+  - {name: trt-int8-minmax, kind: engine, path: models/engines/ppe-v1-int8-minmax.engine}
+imgsz: 640
+batches: [1, 8, 16]
+warmup: 50
+iters: 200
+test_images: data/processed/ppe-7cls-v1/test/images
+test_labels: data/processed/ppe-7cls-v1/test/labels
+classes: ["Hardhat", "NO-Hardhat", "Safety Vest", "NO-Safety Vest", "Person", "Mask", "NO-Mask"]
+conf_eval: 0.001      # low threshold for mAP (standard eval practice)
+iou_nms: 0.70

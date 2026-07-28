@@ -1,0 +1,13 @@
+# ONNX export of the registered champion.
+# YOUR DECISION — dynamic batch axis or static:
+#   dynamic: true   -> batch axis is dynamic (Triton dynamic batching ready);
+#                      TRT will need optimization profiles (min/opt/max)
+#   dynamic: false  -> fixed batch=1; simplest, fastest kernels, but Stage 3
+#                      server-side batching would need a re-export
+model_uri: models:/ppe-detector@baseline-champion
+imgsz: 640
+dynamic: true
+opset: 12
+simplify: true
+half: false        # keep ONNX fp32 — precision decisions belong to TensorRT
+out_dir: models/onnx

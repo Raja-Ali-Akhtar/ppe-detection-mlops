@@ -1,0 +1,15 @@
+# TensorRT engine builds from the exported ONNX.
+# Spatial dims pinned to 640 (min=opt=max); batch ranges 1..16, tuned at 8.
+onnx: models/onnx/ppe-detector-v1-dynamic.onnx
+out_dir: models/engines
+precisions: [fp32, fp16, int8]
+imgsz: 640
+batch_min: 1
+batch_opt: 8
+batch_max: 16
+workspace_gb: 2
+calib:
+  type: minmax       # entropy | minmax  (cache is per type+count)
+  dir: data/processed/ppe-7cls-v1/train/images
+  count: 192         # multiple of batch
+  batch: 8           # must equal batch_opt (calibration runs at the opt shape)
