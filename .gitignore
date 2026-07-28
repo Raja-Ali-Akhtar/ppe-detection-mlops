@@ -44,3 +44,6 @@ Thumbs.db
 
 # generated local helper (recreated by curate_dataset.py)
 data/css-v30-local.yaml
+
+# local build artifacts (onnx/engines/caches - provenance lives in MLflow)
+models/
