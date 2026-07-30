@@ -47,3 +47,6 @@ data/css-v30-local.yaml
 
 # local build artifacts (onnx/engines/caches - provenance lives in MLflow)
 models/
+
+# generated triton model repo (script: package_triton.py)
+serving/triton/model_repository/

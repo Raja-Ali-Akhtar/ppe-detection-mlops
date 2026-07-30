@@ -1,0 +1,44 @@
+# The serving stack — identical locally and in the cloud.
+#   triton  :8000 http / :8001 grpc / :8002 prometheus metrics
+#   gateway :9000  business API -> triton        (the production path)
+#   direct  :9001  model inside FastAPI          (the head-to-head baseline)
+services:
+  triton:
+    image: nvcr.io/nvidia/tritonserver:24.07-py3
+    command: tritonserver --model-repository=/models
+    volumes:
+      - ./triton/model_repository:/models
+    ports: ["8000:8000", "8001:8001", "8002:8002"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    environment:
+      TRITON_URL: triton:8000
+    ports: ["9000:9000"]
+    depends_on: [triton]
+
+  direct:
+    build:
+      context: .
+      dockerfile: direct/Dockerfile
+    environment:
+      MODEL_PATH: /models/model.onnx
+    volumes:
+      - ./triton/model_repository/ppe_detector/1/model.onnx:/models/model.onnx:ro
+    ports: ["9001:9001"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
