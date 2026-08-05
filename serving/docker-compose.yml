@@ -22,7 +22,7 @@ services:
       context: .
       dockerfile: gateway/Dockerfile
     environment:
-      TRITON_URL: triton:8000
+      TRITON_URL: triton:8001
     ports: ["9000:9000"]
     depends_on: [triton]
 

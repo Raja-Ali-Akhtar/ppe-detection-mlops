@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 python3
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-RUN pip3 install --no-cache-dir fastapi uvicorn[standard] python-multipart \
+RUN pip3 install --no-cache-dir --retries 10 --timeout 60 fastapi uvicorn[standard] python-multipart \
     numpy opencv-python-headless onnxruntime-gpu
 
 COPY common.py /app/common.py
