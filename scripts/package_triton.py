@@ -47,7 +47,7 @@ output [
   {{
     name: "{out_name}"
     data_type: TYPE_FP32
-    dims: [ 11, 8400 ]
+    dims: [ 11, -1 ]
   }}
 ]
 
@@ -63,6 +63,17 @@ instance_group [
   {{
     count: {instances}
     kind: KIND_GPU
+  }}
+]
+
+# ORT defaults to EXHAUSTIVE cuDNN conv-algo search: several SECONDS of tuning
+# per previously-unseen batch shape. With dynamic batching feeding it shapes
+# 1..16, that's seconds-long stalls sprinkled through traffic (measured: p95
+# 8000 ms). HEURISTIC picks algorithms instantly at negligible quality cost.
+parameters [
+  {{
+    key: "cudnn_conv_algo_search"
+    value: {{ string_value: "1" }}  # 0=EXHAUSTIVE 1=HEURISTIC 2=DEFAULT (integer enum, not name)
   }}
 ]
 """
