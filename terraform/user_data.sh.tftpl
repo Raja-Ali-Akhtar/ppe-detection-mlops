@@ -1,0 +1,60 @@
+#!/bin/bash
+# Boot script: fetch model repo from S3, log into ECR, start the serving stack.
+# Logs to /var/log/user-data.log (view via SSM session if anything misbehaves).
+exec > /var/log/user-data.log 2>&1
+set -x
+
+apt-get update -y && apt-get install -y docker-compose-plugin awscli || true
+
+mkdir -p /opt/serving/monitoring
+cd /opt/serving
+
+# model repository from S3 (uploaded by scripts/upload_model_s3.ps1 before apply)
+aws s3 sync ${model_s3_prefix}/model_repository ./model_repository --region ${region}
+
+# ECR login (role-based — no keys anywhere on this machine)
+aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${ecr_gateway}
+
+cat > monitoring/prometheus.yml <<'EOF'
+global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: triton
+    static_configs:
+      - targets: ["triton:8002"]
+EOF
+
+cat > docker-compose.yml <<EOF
+services:
+  triton:
+    image: nvcr.io/nvidia/tritonserver:24.07-py3
+    command: tritonserver --model-repository=/models
+    volumes: ["./model_repository:/models"]
+    ports: ["8002:8002"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+  gateway:
+    image: ${ecr_gateway}:latest
+    environment: { TRITON_URL: "triton:8001" }
+    ports: ["9000:9000"]
+    depends_on: [triton]
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes: ["./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    ports: ["3000:3000"]
+EOF
+
+# retry loop: the gateway image may still be uploading when the instance boots
+for i in $(seq 1 30); do docker pull ${ecr_gateway}:latest && break || sleep 20; done
+
+docker compose up -d

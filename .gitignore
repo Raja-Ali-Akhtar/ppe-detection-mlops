@@ -50,3 +50,6 @@ models/
 
 # generated triton model repo (script: package_triton.py)
 serving/triton/model_repository/
+
+# terraform plan files
+tfplan
