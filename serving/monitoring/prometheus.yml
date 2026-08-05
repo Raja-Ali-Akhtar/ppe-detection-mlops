@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s        # tight interval: our load tests are short-lived
+
+scrape_configs:
+  - job_name: triton
+    static_configs:
+      - targets: ["triton:8002"]   # Triton exposes Prometheus metrics natively

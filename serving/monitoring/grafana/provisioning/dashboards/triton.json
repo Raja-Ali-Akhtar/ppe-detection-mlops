@@ -1,0 +1,42 @@
+{
+  "title": "Triton — PPE Detector Serving",
+  "uid": "triton-ppe",
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Throughput: images/s vs GPU executions/s",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "rate(nv_inference_count[30s])", "legendFormat": "images/s" },
+        { "expr": "rate(nv_inference_exec_count[30s])", "legendFormat": "GPU executions/s" }
+      ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Average batch size (the dynamic batcher at work)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "rate(nv_inference_count[30s]) / rate(nv_inference_exec_count[30s])", "legendFormat": "avg batch" }
+      ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Latency breakdown (ms): queue vs GPU compute",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "rate(nv_inference_queue_duration_us[30s]) / rate(nv_inference_count[30s]) / 1000", "legendFormat": "queue wait" },
+        { "expr": "rate(nv_inference_compute_infer_duration_us[30s]) / rate(nv_inference_count[30s]) / 1000", "legendFormat": "GPU compute" },
+        { "expr": "rate(nv_inference_compute_input_duration_us[30s]) / rate(nv_inference_count[30s]) / 1000", "legendFormat": "input handling" }
+      ]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "GPU utilization / memory",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "nv_gpu_utilization * 100", "legendFormat": "GPU util %" },
+        { "expr": "nv_gpu_memory_used_bytes / 1e9", "legendFormat": "GPU mem (GB)" }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}
