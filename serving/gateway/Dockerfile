@@ -8,4 +8,4 @@ COPY common.py /app/common.py
 COPY gateway/app.py /app/gateway/app.py
 
 EXPOSE 9000
-CMD ["uvicorn", "gateway.app:app", "--host", "0.0.0.0", "--port", "9000"]
+CMD ["uvicorn", "gateway.app:app", "--host", "0.0.0.0", "--port", "9000", "--workers", "4"]
