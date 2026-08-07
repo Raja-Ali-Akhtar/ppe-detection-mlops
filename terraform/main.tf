@@ -100,13 +100,16 @@ resource "aws_instance" "serving" {
   vpc_security_group_ids = [aws_security_group.serving.id]
   iam_instance_profile   = aws_iam_instance_profile.instance.name
 
-  instance_market_options {
-    market_type = "spot"
-    spot_options {
-      max_price          = var.spot_max_price
-      spot_instance_type = "one-time"
-    }
-  }
+  # NOTE: launched ON-DEMAND (~$0.658/hr) — AWS granted on-demand G/VT quota (4 vCPU)
+  # but denied the spot request for this account age. Spot appeal still open; when
+  # granted, re-enable the block below for ~$0.16/hr.
+  # instance_market_options {
+  #   market_type = "spot"
+  #   spot_options {
+  #     max_price          = var.spot_max_price
+  #     spot_instance_type = "one-time"
+  #   }
+  # }
 
   root_block_device {
     volume_size = 80 # AMI + triton image (~17 GB unpacked) need headroom

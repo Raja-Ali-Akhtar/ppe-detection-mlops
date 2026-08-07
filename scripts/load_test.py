@@ -10,6 +10,7 @@ requests overlap — or so the theory says. This script checks.
 """
 
 import argparse
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -21,8 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 IMAGE = next((ROOT / "data/processed/ppe-7cls-v1/valid/images").glob("youtube-455*.jpg"))
 
 TARGETS = {
-    "triton-gateway": "http://localhost:9000/detect",
-    "fastapi-direct": "http://localhost:9001/detect",
+    "triton-gateway": "http://" + (os.environ.get("TARGET_HOST","localhost")) + ":9000/detect",
+    "fastapi-direct": "http://" + (os.environ.get("TARGET_HOST","localhost")) + ":9001/detect",
 }
 
 

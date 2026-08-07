@@ -24,6 +24,29 @@ scrape_configs:
       - targets: ["triton:8002"]
 EOF
 
+# Grafana provisioning — without these the cloud dashboard comes up EMPTY
+# (learned the hard way: had to push them over SSM mid-session)
+mkdir -p grafana/datasources grafana/dashboards
+cat > grafana/datasources/prometheus.yml <<'EOF'
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+EOF
+cat > grafana/dashboards/provider.yml <<'EOF'
+apiVersion: 1
+providers:
+  - name: default
+    folder: ""
+    type: file
+    options:
+      path: /etc/grafana/provisioning/dashboards
+EOF
+aws s3 cp ${model_s3_prefix}/grafana/triton.json ./grafana/dashboards/triton.json --region ${region} || true
+
 cat > docker-compose.yml <<EOF
 services:
   triton:
@@ -51,6 +74,7 @@ services:
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes: ["./grafana:/etc/grafana/provisioning:ro"]
     ports: ["3000:3000"]
 EOF
 
