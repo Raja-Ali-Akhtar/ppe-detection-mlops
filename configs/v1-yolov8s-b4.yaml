@@ -1,0 +1,14 @@
+# Stage 4 baseline rerun: v1 data at batch 4.
+# WHY: the v2 run OOM-crashed at batch 8 (cuDNN CUBLAS failure from the 6GB
+# card's shared-memory spillover). Dropping to batch 4 changes a hyperparameter,
+# so the v1 baseline is re-run at the SAME batch — the only variable between
+# this and v2-yolov8s-b4 is the dataset.
+model: yolov8s.pt
+data: data/processed/ppe-7cls-v1/data.yaml
+epochs: 100
+imgsz: 640
+batch: 4
+patience: 30
+seed: 42
+project: ppe-detection
+name: v1-yolov8s-b4
