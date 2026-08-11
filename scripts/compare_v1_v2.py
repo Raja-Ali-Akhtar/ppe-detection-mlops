@@ -17,7 +17,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "reports" / "stage4"
-RUNS = {"v1 (509 imgs)": "v1-yolov8s-b4", "v2 (901 imgs)": "v2-yolov8s-b4"}
+RUNS = {"v1 (509 imgs)": "baseline-yolov8n", "v2 (901 imgs)": "v2-yolov8n"}
 TEST_DATA = ROOT / "data/processed/ppe-7cls-v1/data.yaml"   # identical eval set for both
 
 
@@ -93,3 +93,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

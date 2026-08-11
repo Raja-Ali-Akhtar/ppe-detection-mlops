@@ -24,7 +24,7 @@ This is the sequel to my [monocular depth estimation series](https://github.com/
 - [x] **Stage 1 — Data + baseline training with tracking** — mAP50 0.528 baseline; 717→509 images after curation; DVC+S3; 4 MLflow runs
 - [x] **Stage 2 — Optimization (ONNX / TensorRT FP16 / INT8)** — fp16: 2× @ zero loss; int8: 4× throughput, 98.9% retention after firing the default calibrator
 - [x] **Stage 3 — Cloud deployment with IaC (Triton + Terraform + monitoring)** — 82 req/s local (2× naive FastAPI), deployed to an EC2 T4 for $0.45, destroyed and verified
-- [ ] Stage 4 — The retraining loop (data flywheel + drift detection)
+- [x] **Stage 4 — The retraining loop (data flywheel + drift detection)** — a measured **negative result**: +392 images made the model 8.4% worse, and the per-class pattern says exactly why
 - [ ] Stage 5 — CI/CD
 
 ## Stage 1 — Data + Baseline Training with Tracking ✅
@@ -173,3 +173,90 @@ GET  /health   ·  GET /docs (OpenAPI UI)
 Boxes are pixels in the original image (the gateway reverses letterboxing).
 
 Run it locally: `cd serving && docker compose up -d` → gateway on :9000, Grafana on :3000.
+
+## Stage 4 - The Retraining Loop: a negative result, measured
+
+**TL;DR: I added 392 production images to fix my weakest class. Overall mAP50 fell 0.598 -> 0.547 and that class got 17% worse. The per-class pattern shows exactly why: label quality, not quantity, decided every class.**
+
+The flywheel: serve -> log low-confidence detections -> curate -> dataset v2 -> retrain -> compare.
+Traffic = a second, different PPE dataset (3,235 unseen frames) pushed through the live Triton stack.
+
+### Four things that went wrong before the training even started
+
+**1. My hard-case harvester was not a prioritiser.** v1 used trigger rules (any box in
+0.25-0.50 confidence, any weak NO-*, zero detections) and flagged **83.8%** of production
+frames. Then the control run on the *in-distribution* test set flagged **93.8%**. A rule
+that fires on nearly everything selects nothing. Rewritten as per-frame uncertainty
+*scoring* + a fixed annotation budget + stratified sampling across failure modes
+([`harvest_hard_cases.py`](scripts/harvest_hard_cases.py)).
+
+**2. There was no drift to find.** Mean uncertainty: 0.588 on unseen production data vs
+**0.607** on its own test set. The model is equally unsure everywhere - not drifted,
+**data-starved**, exactly as Stage 1's "+2.3 mAP for 3.7x parameters" implied.
+
+**3. The production set arrived with its class names stripped to numbers.**
+[`infer_label_mapping.py`](scripts/infer_label_mapping.py) recovers them by IoU-matching
+our predictions against the unnamed boxes and counting votes: `0 -> Hardhat` (98.9%
+purity), `3 -> Safety Vest` (68.1%), `4 -> Mask` (100%); four classes unmappable.
+It also produced the real generalisation number: **our model matched only 29.7% of
+production ground-truth boxes** (~50% on the three classes it knows).
+
+**4. The partial-label trap.** Adding those images labelled for only 3 of 7 classes would
+teach the detector that every unlabelled bare head is *background* - destroying the exact
+class we were trying to fix. Partial labels are worse than no labels for detection. So
+[`build_dataset_v2.py`](scripts/build_dataset_v2.py) **fuses**: real GT where it exists,
+model pseudo-labels (IoU-deduped) elsewhere. Dataset v2 = 901 images, DVC-versioned beside v1.
+
+### The experiment
+
+Identical architecture, hyperparameters and held-out test set; only the dataset differs
+(`configs/baseline.yaml` vs `configs/v2-yolov8n.yaml`).
+
+| | v1 (509 imgs) | v2 (901 imgs) | delta |
+|---|---|---|---|
+| mAP50 | **0.5975** | 0.5473 | **-0.0502** |
+| mAP50-95 | 0.3480 | 0.3172 | -0.0308 |
+| precision | 0.7943 | 0.6986 | -0.0957 |
+
+| Class | v1 AP50 | v2 AP50 | delta | label source |
+|---|---|---|---|---|
+| Hardhat | 0.770 | **0.787** | **+2.3%** | 420 real, 98.9% purity |
+| Mask | 0.700 | 0.680 | -2.8% | 231 real, 100% purity |
+| NO-Mask | 0.505 | 0.483 | -4.4% | pseudo only |
+| Person | 0.673 | 0.614 | -8.8% | pseudo only |
+| Safety Vest | 0.679 | 0.578 | -14.9% | 639 real, **68% purity** |
+| NO-Hardhat | 0.325 | 0.269 | **-17.3%** | pseudo only |
+| NO-Safety Vest | 0.531 | 0.421 | **-20.8%** | pseudo only |
+
+**The only class that improved is the only one with clean labels.** The class with the
+*most* labels but a third of them mismatched regressed hardest of the real-labelled ones.
+Everything fed by pseudo-labels from a model already weak at those classes got worse:
+self-training amplifying its own blind spots. **You cannot pseudo-label your way out of a
+weakness in the very class doing the labelling** - and the step I skipped to save two
+hours (human label verification) was the load-bearing one.
+
+### Monitoring finding: input drift is not behavioural drift
+
+Evidently could not run on this machine (0.7.x/0.4.x hit a Python 3.11.0 typing bug,
+0.2.x hits NumPy 2.0), so [`drift_report.py`](scripts/drift_report.py) computes the same
+statistics directly - two-sample Kolmogorov-Smirnov + PSI:
+
+| feature | train | prod | KS | p | PSI | drifted |
+|---|---|---|---|---|---|---|
+| width | 735.2 | 416.0 | 0.848 | 2.8e-92 | 11.81 | yes |
+| aspect | 1.40 | 1.00 | 0.848 | 2.8e-92 | 14.28 | yes |
+| brightness | 126.6 | 144.4 | 0.276 | 8.7e-09 | 2.09 | yes |
+| mean_confidence | 0.377 | 0.404 | 0.120 | 0.055 | 0.25 | **no** |
+| n_detections | 3.33 | 3.60 | 0.116 | 0.069 | 0.05 | **no** |
+| max_confidence | 0.439 | 0.498 | 0.108 | 0.108 | 0.25 | **no** |
+
+Image geometry drifted enormously; the model's own output distribution did not move.
+A monitor watching inputs alone would page you at 3 a.m. for a resize.
+
+### Also learned the hard way
+
+An Evidently install downgraded `pydantic`, which broke `fastapi`, which broke `mlflow` -
+and Ultralytics' tracking callback then failed **silently**: 40 epochs trained, nothing
+recorded. [`backfill_mlflow.py`](scripts/backfill_mlflow.py) reconstructs a run from the
+artifacts Ultralytics always writes to disk. A tracking system that fails loudly is a
+nuisance; one that fails quietly is data loss.

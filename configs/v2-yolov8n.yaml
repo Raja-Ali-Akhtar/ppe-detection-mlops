@@ -1,0 +1,14 @@
+# Stage 4 experiment, fast + strictly controlled.
+# Identical in EVERY field to configs/baseline.yaml (which produced the completed
+# run `baseline-yolov8n`: 0.528 mAP50 on the 509-image v1 dataset) — the ONLY
+# difference is `data`. So any delta is attributable to the dataset alone.
+# YOLOv8n at batch 16 trains ~30 min instead of the 5h a v8s@batch4 pair needed.
+model: yolov8n.pt
+data: data/processed/ppe-7cls-v2/data.yaml
+epochs: 100
+imgsz: 640
+batch: 16
+patience: 30
+seed: 42
+project: ppe-detection
+name: v2-yolov8n
