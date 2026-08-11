@@ -23,19 +23,18 @@ TEST_DATA = ROOT / "data/processed/ppe-7cls-v1/data.yaml"   # identical eval set
 
 def main() -> None:
     mlflow.set_tracking_uri(f"sqlite:///{(ROOT / 'mlflow.db').as_posix()}")
-    runs = mlflow.search_runs(experiment_names=["ppe-detection"])
 
     OUT.mkdir(parents=True, exist_ok=True)
     from ultralytics import YOLO
 
+    # weights on disk are the source of truth here — the MLflow run may be absent
+    # (a broken pydantic silently killed the tracking callback mid-stage; metrics
+    # are backfilled separately by scripts/backfill_mlflow.py)
     overall, per_class = {}, {}
     for label, name in RUNS.items():
-        row = runs.loc[runs["tags.mlflow.runName"] == name]
-        if row.empty:
-            raise SystemExit(f"run {name} not found — training may still be going")
         weights = ROOT / "runs" / "ppe-detection" / name / "weights" / "best.pt"
         if not weights.exists():
-            raise SystemExit(f"{weights} missing")
+            raise SystemExit(f"{weights} missing — training may still be running")
 
         print(f"evaluating {label} on the held-out test set …")
         m = YOLO(str(weights))
