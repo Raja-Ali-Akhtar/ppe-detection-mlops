@@ -1,0 +1,91 @@
+{
+  "method": "KS two-sample (p<0.05) + PSI \u2014 Evidently blocked by py3.11.0 typing bug",
+  "reference_rows": 250,
+  "current_rows": 250,
+  "n_drifted": 5,
+  "n_features": 9,
+  "dataset_drift": true,
+  "features": [
+    {
+      "feature": "width",
+      "train_mean": 735.196,
+      "prod_mean": 416.0,
+      "ks_stat": 0.848,
+      "p_value": 2.82e-92,
+      "psi": 11.814,
+      "drifted": true
+    },
+    {
+      "feature": "aspect",
+      "train_mean": 1.401,
+      "prod_mean": 1.0,
+      "ks_stat": 0.848,
+      "p_value": 2.82e-92,
+      "psi": 14.278,
+      "drifted": true
+    },
+    {
+      "feature": "height",
+      "train_mean": 555.008,
+      "prod_mean": 416.0,
+      "ks_stat": 0.548,
+      "p_value": 8.06e-35,
+      "psi": 4.064,
+      "drifted": true
+    },
+    {
+      "feature": "brightness",
+      "train_mean": 126.589,
+      "prod_mean": 144.352,
+      "ks_stat": 0.276,
+      "p_value": 8.69e-09,
+      "psi": 2.089,
+      "drifted": true
+    },
+    {
+      "feature": "violation_share",
+      "train_mean": 0.188,
+      "prod_mean": 0.154,
+      "ks_stat": 0.144,
+      "p_value": 0.0111,
+      "psi": 0.531,
+      "drifted": true
+    },
+    {
+      "feature": "mean_confidence",
+      "train_mean": 0.377,
+      "prod_mean": 0.404,
+      "ks_stat": 0.12,
+      "p_value": 0.0546,
+      "psi": 0.246,
+      "drifted": false
+    },
+    {
+      "feature": "n_detections",
+      "train_mean": 3.328,
+      "prod_mean": 3.596,
+      "ks_stat": 0.116,
+      "p_value": 0.0691,
+      "psi": 0.053,
+      "drifted": false
+    },
+    {
+      "feature": "max_confidence",
+      "train_mean": 0.439,
+      "prod_mean": 0.498,
+      "ks_stat": 0.108,
+      "p_value": 0.108,
+      "psi": 0.246,
+      "drifted": false
+    },
+    {
+      "feature": "contrast",
+      "train_mean": 61.303,
+      "prod_mean": 58.375,
+      "ks_stat": 0.096,
+      "p_value": 0.2,
+      "psi": 0.265,
+      "drifted": false
+    }
+  ]
+}

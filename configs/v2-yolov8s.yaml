@@ -1,0 +1,12 @@
+# Stage 4 retrain: identical to exp-yolov8s in EVERY hyperparameter.
+# The only variable is the dataset (v1 509 imgs -> v2 901 imgs with fused labels),
+# so any mAP delta is attributable to data, not tuning.
+model: yolov8s.pt
+data: data/processed/ppe-7cls-v2/data.yaml
+epochs: 100
+imgsz: 640
+batch: 8
+patience: 30
+seed: 42
+project: ppe-detection
+name: v2-yolov8s
