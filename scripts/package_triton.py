@@ -17,8 +17,8 @@ The config is GENERATED from the ONNX graph (input/output names + shapes read
 from the model, never hardcoded).
 """
 
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 import mlflow
 import onnx

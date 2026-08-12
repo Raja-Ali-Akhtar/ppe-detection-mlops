@@ -53,3 +53,8 @@ serving/triton/model_repository/
 
 # terraform plan files
 tfplan
+
+# production traffic dataset (Stage 4) - large, DVC/S3 territory
+data/production/
+data/hard_cases/
+data/hard_cases_reviewed/

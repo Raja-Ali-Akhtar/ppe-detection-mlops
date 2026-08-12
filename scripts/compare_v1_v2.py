@@ -1,4 +1,4 @@
-"""Stage 4 verdict: did adding production data help — and did NO-Hardhat move?
+﻿"""Stage 4 verdict: did adding production data help — and did NO-Hardhat move?
 
     python scripts/compare_v1_v2.py
 
@@ -80,7 +80,8 @@ def main() -> None:
     y = range(len(tbl))
     ax.barh([i + 0.2 for i in y], tbl[a], 0.38, label=a, color="#898781")
     ax.barh([i - 0.2 for i in y], tbl[b], 0.38, label=b, color="#2a78d6")
-    ax.set_yticks(list(y)); ax.set_yticklabels(tbl.index)
+    ax.set_yticks(list(y))
+    ax.set_yticklabels(tbl.index)
     ax.set_xlabel("AP50 (held-out test set)")
     ax.set_title("Does +500 production images move the weak classes?", fontweight="bold")
     ax.legend(frameon=False)
@@ -93,4 +94,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
 

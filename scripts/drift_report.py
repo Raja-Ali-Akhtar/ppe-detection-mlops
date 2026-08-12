@@ -1,4 +1,4 @@
-"""Evidently drift report: production traffic vs the training distribution.
+﻿"""Evidently drift report: production traffic vs the training distribution.
 
     python scripts/drift_report.py --limit 400
 
@@ -123,15 +123,18 @@ def main() -> None:
           f"(KS p<0.05). Dataset-level drift: {summary['dataset_drift']}\n")
     print("\n--- drift (KS + PSI) ---")
     print(drift.to_string(index=False))
-    print(f"\n{summary['n_drifted']}/{len(drift)} features drifted · dataset_drift={summary['dataset_drift']}")
+    print(f"\n{summary['n_drifted']}/{len(drift)} features drifted")
+    print(f"dataset_drift={summary['dataset_drift']}")
 
     print("\n--- distribution comparison (means) ---")
     comp = pd.DataFrame({"training": ref.mean(numeric_only=True),
                          "production": cur.mean(numeric_only=True)}).round(3)
-    comp["delta_%"] = ((comp["production"] - comp["training"]) / comp["training"].replace(0, np.nan) * 100).round(1)
+    base = comp["training"].replace(0, np.nan)
+    comp["delta_%"] = ((comp["production"] - base) / base * 100).round(1)
     print(comp.to_string())
     print(f"\nreport: {OUT / 'drift_report.html'}")
 
 
 if __name__ == "__main__":
     main()
+

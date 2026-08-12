@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: lint + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # CI has no GPU, no dataset and no model — deliberately. Everything here
+      # tests pure logic and contracts, so it runs in ~60s on a free runner.
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest ruff numpy pyyaml opencv-python-headless mlflow fastapi
+
+      - name: Lint
+        run: ruff check scripts serving tests --output-format=github
+
+      - name: Tests
+        run: pytest tests -q
+
+  build:
+    name: gateway image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Catches Dockerfile rot before it reaches the cloud. Build only — pushing
+      # is CD's job, and only from main.
+      - name: Build gateway image
+        run: docker build -f serving/gateway/Dockerfile -t ppe-gateway:ci serving
+
+      - name: Container starts and serves /health
+        run: |
+          docker run -d --name gw -p 9000:9000 -e TRITON_URL=triton:8001 ppe-gateway:ci
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:9000/health > /dev/null; then
+              echo "gateway healthy:"; curl -s http://localhost:9000/health; exit 0
+            fi
+            sleep 2
+          done
+          echo "gateway never became healthy"; docker logs gw; exit 1
+
+  terraform:
+    name: terraform validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Format check
+        run: terraform -chdir=terraform fmt -check -diff
+      - name: Validate
+        run: |
+          terraform -chdir=terraform init -backend=false
+          terraform -chdir=terraform validate

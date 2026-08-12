@@ -13,11 +13,9 @@ Findings drive what data/processed/ will look like — raw/ is never modified.
 """
 
 import argparse
-from collections import Counter
 from pathlib import Path
 
 import fiftyone as fo
-import fiftyone.utils.yolo as fouy
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"

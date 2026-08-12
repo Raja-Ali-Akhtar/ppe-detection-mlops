@@ -1,4 +1,4 @@
-"""Benchmark every model variant: latency, throughput, VRAM, and mAP retention.
+﻿"""Benchmark every model variant: latency, throughput, VRAM, and mAP retention.
 
 Usage:
     python scripts/benchmark.py --config configs/benchmark.yaml
@@ -24,7 +24,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from build_engines import letterbox, preprocess  # same preprocessing, one source
+from build_engines import preprocess  # same preprocessing, one source
 
 
 # --------------------------------------------------------------- TRT runner
@@ -44,7 +44,6 @@ class EngineRunner:
         self.vram_mb = (free0 - free1) / 1e6
 
     def __call__(self, batch_tensor):
-        b = batch_tensor.shape[0]
         self.ctx.set_input_shape(self.inp, tuple(batch_tensor.shape))
         out_shape = tuple(self.ctx.get_tensor_shape(self.out))
         out = torch.empty(out_shape, dtype=torch.float32, device="cuda")
@@ -219,3 +218,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

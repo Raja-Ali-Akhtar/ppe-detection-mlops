@@ -1,0 +1,67 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "serving/**"
+      - ".github/workflows/cd.yml"
+  workflow_dispatch:
+
+# The deployment target (EC2 + ECR) is created and destroyed per session by
+# Terraform — by design, a $50-budget project does not leave a GPU running.
+# So CD's finish line is "a new image lands in ECR", not "a server is updated".
+# When AWS credentials are absent the job still builds and verifies the image,
+# so the pipeline stays green and honest instead of red and ignored.
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for AWS credentials
+        id: creds
+        run: |
+          if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No AWS secrets configured — building and verifying only."
+          fi
+
+      - name: Build gateway image
+        run: docker build -f serving/gateway/Dockerfile -t ppe-gateway:${{ github.sha }} serving
+
+      - name: Configure AWS credentials
+        if: steps.creds.outputs.available == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Login to ECR
+        if: steps.creds.outputs.available == 'true'
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push
+        if: steps.creds.outputs.available == 'true'
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          docker tag ppe-gateway:${{ github.sha }} $REGISTRY/ppe-gateway:${{ github.sha }}
+          docker tag ppe-gateway:${{ github.sha }} $REGISTRY/ppe-gateway:latest
+          docker push $REGISTRY/ppe-gateway:${{ github.sha }}
+          docker push $REGISTRY/ppe-gateway:latest
+          echo "::notice::pushed ppe-gateway:${{ github.sha }} to ECR"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Gateway image"
+            echo "- commit: \`${{ github.sha }}\`"
+            echo "- pushed to ECR: **${{ steps.creds.outputs.available }}**"
+          } >> "$GITHUB_STEP_SUMMARY"

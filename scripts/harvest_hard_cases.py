@@ -1,4 +1,4 @@
-"""Run production traffic through the served model and harvest HARD CASES.
+﻿"""Run production traffic through the served model and harvest HARD CASES.
 
 Usage:
     python scripts/harvest_hard_cases.py --limit 300
@@ -81,7 +81,8 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=300)
     ap.add_argument("--conf", type=float, default=0.20,
                     help="collection threshold — LOWER than serving, so we see hesitation")
-    ap.add_argument("--budget", type=int, default=150, help="annotation budget: keep the top-N most uncertain frames")
+    ap.add_argument("--budget", type=int, default=150,
+                    help="annotation budget: keep the top-N most uncertain frames")
     ap.add_argument("--score-only", action="store_true", help="report the score distribution, copy nothing")
     ap.add_argument("--no-s3", action="store_true")
     args = ap.parse_args()
@@ -144,7 +145,11 @@ def main() -> None:
         (OUT / "predictions.json").write_text(json.dumps(records, indent=2))
 
     all_scores = [s["score"] for s in scored]
-    q = lambda p: round(sorted(all_scores)[int(p * (len(all_scores) - 1))], 3)
+    srt = sorted(all_scores)
+
+    def q(p):
+        return round(srt[int(p * (len(srt) - 1))], 3)
+
     summary = {
         "source": args.source,
         "frames_scored": len(scored),
@@ -169,4 +174,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
