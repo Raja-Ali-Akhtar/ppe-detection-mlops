@@ -1,6 +1,6 @@
 # Stage 4 experiment, fast + strictly controlled.
 # Identical in EVERY field to configs/baseline.yaml (which produced the completed
-# run `baseline-yolov8n`: 0.528 mAP50 on the 509-image v1 dataset) — the ONLY
+# run `baseline-yolov8n`: 0.528 mAP50 on the 509-image v1 dataset) - the ONLY
 # difference is `data`. So any delta is attributable to the dataset alone.
 # YOLOv8n at batch 16 trains ~30 min instead of the 5h a v8s@batch4 pair needed.
 model: yolov8n.pt

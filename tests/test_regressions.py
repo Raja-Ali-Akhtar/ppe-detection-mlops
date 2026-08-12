@@ -1,4 +1,4 @@
-﻿"""Regression tests written from REAL incidents in this project.
+"""Regression tests written from REAL incidents in this project.
 
 Every test here exists because something broke and cost hours. CI runs them on
 every push so the same failure cannot come back quietly.
@@ -96,7 +96,7 @@ def test_class_list_is_consistent_everywhere():
 
 def test_training_configs_are_valid():
     for cfg_path in (ROOT / "configs").glob("*.yaml"):
-        cfg = yaml.safe_load(cfg_path.read_text())
+        cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
         if "model" not in cfg:                 # export/engine configs have their own shape
             continue
         # 320 is legitimate — exp-imgsz320 is the resolution ablation. The real
@@ -109,12 +109,31 @@ def test_training_configs_are_valid():
         assert "seed" in cfg, f"{cfg_path.name}: runs must be seeded to be comparable"
 
 
+def _tracked_text_files():
+    return (list(ROOT.glob("scripts/*.py")) + list(ROOT.glob("serving/**/*.py"))
+            + list(ROOT.glob("tests/*.py")) + list(ROOT.glob("terraform/*.tf"))
+            + list(ROOT.glob("configs/*.yaml")))
+
+
+def test_all_source_files_are_utf8():
+    """Windows PowerShell writes cp1252 by default, so an em-dash in a comment
+    silently produces a file Linux CI cannot read. Found by CI, not locally —
+    exactly the class of bug cross-platform CI exists to catch."""
+    bad = []
+    for path in _tracked_text_files():
+        try:
+            path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as e:
+            bad.append(f"{path.relative_to(ROOT)}: {e}")
+    assert not bad, "non-UTF-8 source files:\n" + "\n".join(bad)
+
+
 def test_no_secrets_committed():
     """The AWS key leak in Stage 1 cost a rotation. Never again from a commit."""
     import re
 
     pattern = re.compile(r"AKIA[0-9A-Z]{16}")
-    for path in list(ROOT.glob("scripts/*.py")) + list(ROOT.glob("serving/**/*.py")) \
-            + list(ROOT.glob("terraform/*.tf")) + list(ROOT.glob("configs/*.yaml")):
-        assert not pattern.search(path.read_text()), f"AWS access key id found in {path}"
+    for path in _tracked_text_files():
+        text = path.read_text(encoding="utf-8", errors="replace")
+        assert not pattern.search(text), f"AWS access key id found in {path}"
 
