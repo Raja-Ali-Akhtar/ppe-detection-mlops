@@ -1,4 +1,7 @@
-# PPE Detection — Production MLOps Pipeline
+﻿# PPE Detection — Production MLOps Pipeline
+
+[![CI](https://github.com/Raja-Ali-Akhtar/ppe-detection-mlops/actions/workflows/ci.yml/badge.svg)](https://github.com/Raja-Ali-Akhtar/ppe-detection-mlops/actions/workflows/ci.yml)
+[![CD](https://github.com/Raja-Ali-Akhtar/ppe-detection-mlops/actions/workflows/cd.yml/badge.svg)](https://github.com/Raja-Ali-Akhtar/ppe-detection-mlops/actions/workflows/cd.yml)
 
 Detecting hardhats and safety vests on construction sites — built as a **production-grade, cloud-native MLOps system**, not just a model.
 
@@ -25,7 +28,7 @@ This is the sequel to my [monocular depth estimation series](https://github.com/
 - [x] **Stage 2 — Optimization (ONNX / TensorRT FP16 / INT8)** — fp16: 2× @ zero loss; int8: 4× throughput, 98.9% retention after firing the default calibrator
 - [x] **Stage 3 — Cloud deployment with IaC (Triton + Terraform + monitoring)** — 82 req/s local (2× naive FastAPI), deployed to an EC2 T4 for $0.45, destroyed and verified
 - [x] **Stage 4 — The retraining loop (data flywheel + drift detection)** — a measured **negative result**: +392 images made the model 8.4% worse, and the per-class pattern says exactly why
-- [ ] Stage 5 — CI/CD
+- [x] **Stage 5 — CI/CD (GitHub Actions)** — 19 contract tests written from this project's own incidents; lint, image build + health check, terraform validate
 
 ## Stage 1 — Data + Baseline Training with Tracking ✅
 
@@ -260,3 +263,44 @@ and Ultralytics' tracking callback then failed **silently**: 40 epochs trained, 
 recorded. [`backfill_mlflow.py`](scripts/backfill_mlflow.py) reconstructs a run from the
 artifacts Ultralytics always writes to disk. A tracking system that fails loudly is a
 nuisance; one that fails quietly is data loss.
+
+
+## Stage 5 - CI/CD: tests written from this project's own scars
+
+[![CI](https://github.com/Raja-Ali-Akhtar/ppe-detection-mlops/actions/workflows/ci.yml/badge.svg)](https://github.com/Raja-Ali-Akhtar/ppe-detection-mlops/actions/workflows/ci.yml)
+
+**TL;DR: generic CI catches generic bugs. Every test here exists because something in
+THIS project broke and cost hours - so the same failure cannot come back quietly.**
+
+`.github/workflows/ci.yml` runs on every push and PR, in ~60 seconds on a free runner,
+with **no GPU, no dataset and no model** - deliberately. It tests logic and contracts:
+
+| Job | What it does |
+|---|---|
+| lint + tests | `ruff` + 20 `pytest` tests |
+| gateway image builds | `docker build` the gateway, run it, assert `/health` answers |
+| terraform validate | `terraform fmt -check` + `validate` on the infra code |
+
+### The regression tests, and the incident behind each
+
+| Test | The incident it prevents |
+|---|---|
+| `test_mlflow_can_actually_log` | Stage 4: an Evidently install downgraded `pydantic` -> broke `fastapi` -> broke `mlflow`. Ultralytics' tracking callback then failed **silently**: 40 epochs trained, nothing recorded. Importing is not enough - the test logs a metric and reads it back. |
+| `test_triton_config_generator_uses_dynamic_output_dim` | Stage 3: Triton refused to load because `config.pbtxt` said `[11, 8400]` while the ONNX graph says `[-1, 11, -1]`. The config must describe the graph's *capability*, not our deployment intention. |
+| `test_triton_config_cudnn_algo_is_integer_enum` | Stage 3: the ORT parameter takes an integer enum as a string. Passing the NAME made Triton refuse the model; leaving the EXHAUSTIVE default gave **p95 8,000 ms**. |
+| `test_gateway_uses_grpc_client` | Stage 3: `tritonclient.http` is gevent-based and crashes under uvicorn's asyncio loop ("Cannot switch to a different thread"). |
+| `test_decode_maps_boxes_back_to_original_image` | The silent mAP killer: if letterbox/decode geometry drifts between training and serving, every box shifts and nothing errors. |
+| `test_class_list_is_consistent_everywhere` | One class list, many consumers - a mismatch silently relabels every detection. |
+| `test_all_source_files_are_utf8` | **Found by CI on its first run:** Windows PowerShell writes cp1252 by default, so an em-dash in a comment produced config files Linux could not read. Invisible locally, fatal in CI. |
+| `test_no_secrets_committed` | Stage 1: an AWS key leaked and had to be rotated. Never again from a commit. |
+
+That last row is the point of the whole stage: **CI found a bug within sixty seconds of
+existing, and it was a bug that could not be reproduced on the machine that wrote it.**
+
+### CD
+
+`.github/workflows/cd.yml` builds the gateway image on changes to `serving/**` and pushes
+it to ECR when credentials are present. The deployment target is created and destroyed
+per session by Terraform (a $50-budget project does not leave a GPU running), so **CD's
+finish line is "a new image in ECR", not "a server was updated"** - and without secrets it
+still builds and verifies, so the pipeline stays green and honest rather than red and ignored.
